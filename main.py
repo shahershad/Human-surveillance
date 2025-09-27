@@ -2,6 +2,7 @@ import streamlit as st
 import cv2
 import numpy as np
 import tempfile
+import time
 from ultralytics import YOLO
 from ultralytics.engine.results import Boxes
 import os
@@ -34,6 +35,7 @@ def process_frame(frame, mode, conf, custom_model, coco_model):
     """Run YOLO inference and filter if needed."""
     if mode == "Custom (best.pt)":
         res = custom_model(frame, conf=conf)[0]
+
     elif mode == "COCO (filtered)":
         res = coco_model(frame, conf=conf)[0]
         mask = [coco_model.names[int(c)] in allowed_classes for c in res.boxes.cls]
@@ -41,6 +43,7 @@ def process_frame(frame, mode, conf, custom_model, coco_model):
         for c in res.boxes.cls:
             old = coco_model.names[int(c)]
             res.names[int(c)] = allowed_classes[old]
+
     return res.plot()
 
 def annotate_video(input_path, output_path, mode, conf, custom_model, coco_model):
@@ -101,6 +104,15 @@ with tab1:
         st.image(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
                  caption=f"Detections ({mode})", use_container_width=True)
 
+        # Save annotated image for download
+        out_path = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg").name
+        cv2.imwrite(out_path, annotated)
+        with open(out_path, "rb") as f:
+            st.download_button("Download Annotated Image",
+                               data=f,
+                               file_name="annotated_image.jpg",
+                               mime="image/jpeg")
+
 # ---------- Tab 2: Video File ----------
 with tab2:
     st.subheader("Test Video or Upload")
@@ -123,8 +135,15 @@ with tab2:
         st.info("⏳ Processing video... please wait.")
         success = annotate_video(video_path, t_out.name, mode, CONF, custom_model, coco_model)
         if success:
-            st.success("✅ Done! Annotated video is ready:")
-            st.video(t_out.name)  # just play, no download button
+            st.success("✅ Done! Here is the annotated video:")
+            st.video(t_out.name)
+            with open(t_out.name, "rb") as f:
+                st.download_button(
+                    "Download Annotated Video",
+                    data=f,
+                    file_name="annotated_output.mp4",
+                    mime="video/mp4"
+                )
 
 # ---------- Tab 3: Live Camera ----------
 with tab3:
