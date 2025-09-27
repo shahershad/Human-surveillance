@@ -21,19 +21,21 @@ allowed_classes = {"person": "human", "suitcase": "luggage"}
 # Load models once
 @st.cache_resource
 def load_custom():
-    return YOLO("models/best.pt")   # <-- put your trained model here
+    return YOLO("models/best.pt")   # <-- your trained model here
 
 @st.cache_resource
 def load_coco():
-    return YOLO("yolov8n.pt")       # pretrained COCO model
+    return YOLO("yolov8n.pt")       # COCO pretrained
 
 custom_model = load_custom()
 coco_model = load_coco()
 
 # ---------------- Detection logic ----------------
 def process_frame(frame, mode, conf, custom_model, coco_model):
+    """Run YOLO inference and filter if needed."""
     if mode == "Custom (best.pt)":
         res = custom_model(frame, conf=conf)[0]
+
     elif mode == "COCO (filtered)":
         res = coco_model(frame, conf=conf)[0]
         mask = [coco_model.names[int(c)] in allowed_classes for c in res.boxes.cls]
@@ -41,28 +43,28 @@ def process_frame(frame, mode, conf, custom_model, coco_model):
         for c in res.boxes.cls:
             old = coco_model.names[int(c)]
             res.names[int(c)] = allowed_classes[old]
+
     return res.plot()
 
 def annotate_video(input_path, output_path, mode, conf, custom_model, coco_model):
+    """Process full video and save annotated MP4."""
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
         return False
+
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS) or 24
+
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(output_path, fourcc, fps, (w, h))
 
-    frame_placeholder = st.empty()
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
         annotated = process_frame(frame, mode, conf, custom_model, coco_model)
-        out.write(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB))  # save to file
-        frame_placeholder.image(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
-                                caption=f"Video Detection ({mode})", use_container_width=True)
-        time.sleep(0.01)
+        out.write(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB))  # save frame
     cap.release()
     out.release()
     return True
@@ -119,9 +121,10 @@ with tab2:
 
     if video_path:
         t_out = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        st.info("⏳ Processing video... please wait (this may take a while).")
         success = annotate_video(video_path, t_out.name, mode, CONF, custom_model, coco_model)
         if success:
-            st.success("Processing complete ✅")
+            st.success("✅ Done! Here is the annotated video:")
             st.video(t_out.name)
             with open(t_out.name, "rb") as f:
                 st.download_button(
@@ -134,8 +137,8 @@ with tab2:
 # ---------- Tab 3: Live Camera ----------
 with tab3:
     st.subheader("Webcam Stream")
-    if os.environ.get("STREAMLIT_RUNTIME"):  # detect Streamlit Cloud
-        st.info("Webcam not supported on Streamlit Cloud.")
+    if os.environ.get("STREAMLIT_RUNTIME"):  # detect Cloud
+        st.info("⚠️ Webcam not supported on Streamlit Cloud.")
     else:
         run = st.checkbox("Start Webcam")
         FRAME_WINDOW = st.image([])
@@ -148,5 +151,6 @@ with tab3:
                     break
                 annotated = process_frame(frame, mode, CONF, custom_model, coco_model)
                 FRAME_WINDOW.image(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
-                                   caption=f"Live Detection ({mode})", use_container_width=True)
+                                   caption=f"Live Detection ({mode})",
+                                   use_container_width=True)
             cap.release()
