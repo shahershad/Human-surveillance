@@ -32,7 +32,7 @@ coco_model = load_coco()
 
 # ---------------- Detection logic ----------------
 def process_frame(frame, mode, conf, custom_model, coco_model):
-    if mode == "Custom (best.pt)":
+    if mode == "Custom (bestV3.pt)":
         res = custom_model(frame, conf=conf)[0]
     elif mode == "COCO (filtered)":
         res = coco_model(frame, conf=conf)[0]
@@ -138,4 +138,5 @@ with tab3:
             FRAME_WINDOW.image(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
                                caption=f"Live Detection ({mode})", use_container_width=True)
         cap.release()
+
 
