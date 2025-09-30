@@ -21,7 +21,7 @@ allowed_classes = {"person": "human", "suitcase": "luggage"}
 # Load models once
 @st.cache_resource
 def load_custom():
-    return YOLO("models/best.pt")
+    return YOLO("models/bestV3.pt")
 
 @st.cache_resource
 def load_coco():
@@ -138,3 +138,4 @@ with tab3:
             FRAME_WINDOW.image(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
                                caption=f"Live Detection ({mode})", use_container_width=True)
         cap.release()
+
